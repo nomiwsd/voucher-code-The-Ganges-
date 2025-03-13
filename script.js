@@ -24,6 +24,7 @@ async function claimReward(voucherCode) {
     let response = await fetch(
       "https://script.google.com/macros/s/AKfycbz7ZcHLBxw7W0z9dVlgLEy1DysOpG66j1ISWuZPwEcPpaCX3gjEPNWs7L-gGTYEOLba/exec",
       {
+        mode: "no-cors",
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voucherCode: voucherCode }),
@@ -77,42 +78,35 @@ async function fetchData(sheetKey, inputId) {
     let response = await fetch(
       `https://script.google.com/macros/s/AKfycbz7ZcHLBxw7W0z9dVlgLEy1DysOpG66j1ISWuZPwEcPpaCX3gjEPNWs7L-gGTYEOLba/exec?voucherCode=${voucherCode}`
     );
-
-    let result = await response.json();
-
+  
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  
+    let resultText = await response.text();
+    let result;
+  
+    try {
+      result = JSON.parse(resultText);
+    } catch (e) {
+      throw new Error("Failed to parse JSON response: " + resultText);
+    }
+  
     if (result.success) {
       document.getElementById("name").innerText = result.name || "N/A";
       document.getElementById("email").innerText = result.email || "N/A";
       document.getElementById("reward").innerText = result.reward || "N/A";
       document.getElementById("screenshot").innerText = result.screenshot || "N/A";
-      document.getElementById("expiry").innerText = result.expiry || "N/A";
-      document.getElementById("status").innerText = result.status || "N/A";
-
-      Swal.fire({
-        icon: "success",
-        title: "🎉 Voucher Found!",
-        text: `Voucher ${voucherCode} is valid.`,
-        confirmButtonColor: "#28a745",
-      });
-
-      // Enable the claim button
-      document.getElementById("claim-btn").disabled = false;
-      document.getElementById("claim-btn").onclick = () => claimReward(voucherCode);
     } else {
-      Swal.fire({
-        icon: "error",
-        title: "Invalid Voucher! ❌",
-        text: "The voucher code you entered is not valid.",
-        confirmButtonColor: "#d33",
-      });
+      throw new Error("Voucher not found or invalid response format.");
     }
   } catch (error) {
     console.error("Error fetching voucher:", error);
     Swal.fire({
       icon: "error",
-      title: "Network Error! 🚨",
-      text: "Failed to retrieve voucher details. Please check your connection.",
-      confirmButtonColor: "#d33",
+      title: "Error fetching voucher",
+      text: error.message,
+      confirmButtonColor: "#3085d6",
     });
   }
 }
